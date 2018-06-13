@@ -118,17 +118,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                     jobContext.AddIssue(new Issue() { Type = IssueType.Error, Message = errorMessage });
                 });
 
-                // Set agent version variable.
-                jobContext.Variables.Set(Constants.Variables.Agent.Version, Constants.Agent.Version);
-                jobContext.Output(StringUtil.Loc("AgentVersion", Constants.Agent.Version));
-
-                // Print proxy setting information for better diagnostic experience
-                var agentWebProxy = HostContext.GetService<IVstsAgentWebProxy>();
-                if (!string.IsNullOrEmpty(agentWebProxy.ProxyAddress))
-                {
-                    jobContext.Output(StringUtil.Loc("AgentRunningBehindProxy", agentWebProxy.ProxyAddress));
-                }
-
                 // Validate directory permissions.
                 string workDirectory = HostContext.GetDirectory(WellKnownDirectory.Work);
                 Trace.Info($"Validating directory permissions for: '{workDirectory}'");
@@ -216,6 +205,31 @@ namespace Microsoft.VisualStudio.Services.Agent.Worker
                 {
                     jobContext.Variables.ExpandValues(target: endpoint.Data);
                     VarUtil.ExpandEnvironmentVariables(HostContext, target: endpoint.Data);
+                }
+
+                // Expand the repository workspace mapping property values.
+                foreach (var repository in jobContext.Repositories)
+                {
+                    var mappings = repository.Properties.Get<IList<Pipelines.WorkspaceMapping>>(Pipelines.RepositoryPropertyNames.Mappings);
+                    if (mappings != null)
+                    {
+                        foreach (var mapping in mappings)
+                        {
+                            Dictionary<string, string> data = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                            data["serverPath"] = mapping.ServerPath;
+                            data["localPath"] = mapping.LocalPath;
+
+                            jobContext.Variables.ExpandValues(target: data);
+                            VarUtil.ExpandEnvironmentVariables(HostContext, target: data);
+
+                            mapping.ServerPath = data["serverPath"];
+                            mapping.LocalPath = data["localPath"];
+                            jobContext.Debug(mapping.ServerPath);
+                            jobContext.Debug(mapping.LocalPath);
+                        }
+
+                        repository.Properties.Set<IList<Pipelines.WorkspaceMapping>>(Pipelines.RepositoryPropertyNames.Mappings, mappings);
+                    }
                 }
 
                 // Get the job extension.
