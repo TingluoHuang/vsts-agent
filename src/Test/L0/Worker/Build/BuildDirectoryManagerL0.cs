@@ -24,7 +24,6 @@ namespace Microsoft.VisualStudio.Services.Agent.Tests.Worker.Build
         private Pipelines.WorkspaceOptions _workspaceOptions;
         private TrackingConfig _existingConfig;
         private TrackingConfig _newConfig;
-        private Mock<ISourceProvider> _sourceProvider;
         private string _trackingFile;
         private Mock<ITrackingManager> _trackingManager;
         private Variables _variables;
